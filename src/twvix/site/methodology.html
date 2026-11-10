@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>方法說明</title><link rel="stylesheet" href="assets/style.css"></head><body><main>
+__NAV__
+<h1>方法說明</h1>
+<div class="card method">
+  <h3>資料與口徑</h3>
+  <p>來源：臺灣期貨交易所（TAIFEX）臺指選擇權（TXO）每日行情，只使用<strong>月選</strong>、一般交易時段。每個交易日取近月與次月；近月距到期剩 2 個交易日（含到期日）時，改用次月與次次月，與 TAIFEX 的換月規則一致。到期時間算到到期日 13:30，一年以 525,600 分鐘計。</p>
+  <p><strong>價格使用 TAIFEX 每日結算價</strong>，不是盤中買賣價。原因：收盤時簿上的最後最佳買賣價常常已經變薄、價差很寬，實測用買賣價中價在 66 個交易日中只有 37 天算得出來且誤差很大；結算價每個履約價都有、而且平滑。官方 VIX 是盤中每 15 秒計算，與這裡的每日計算在原理上不完全相同。</p>
+  <p>遠期價 F 以 put-call parity 求得（|C−P| 最小的履約價 K*，F = K* + e^{RT}(C−P)）；無風險利率 R 為<strong>固定常數 <span id="m-rate"></span></strong>，不是 TAIBOR，因此屬近似值。</p>
+  <h3>VIX</h3>
+  <p>依 CBOE 方法對每個到期日計算，再內插到 30 天：</p>
+  <span class="eq">σ² = (2/T) Σ [ΔK/K²]·e^{RT}·Q(K) − (1/T)(F/K₀ − 1)²</span>
+  <span class="eq">VIX = 100·√{ [T₁σ₁²·(N₂−N₃₀)/(N₂−N₁) + T₂σ₂²·(N₃₀−N₁)/(N₂−N₁)] · N₃₆₅/N₃₀ }</span>
+  <p>Q(K) 為價外選擇權價格（K₀ 取 call 與 put 平均）；由 K₀ 往外，連續兩個序列沒有有效價格即停止。自算值與 TAIFEX 公布值：<span id="m-acc"></span></p>
+  <h3>SVIX</h3>
+  <p>Ian Martin 的 Simple VIX：風險中性下<em>簡單報酬</em>的變異數。為了不依賴現貨與股利，這裡以<strong>遠期價正規化</strong>：</p>
+  <span class="eq">SVIX²·T = (2·e^{RT} / F²) Σ Q(K)·ΔK</span>
+  <p>內插到 30 天的方式與 VIX 相同。此版本與 Martin 以現貨正規化的版本，在有股利時略有差異。VIX 對下跌（對數報酬）較敏感，所以通常 VIX &gt; SVIX，差距越大代表左尾越厚；但這不是定理，平坦波動率下 SVIX 反而略高。</p>
+  <h3>崩盤機率</h3>
+  <p><strong>風險中性機率 Q</strong>：用 Black-76 把價外選擇權價格轉成隱含波動率，對 log-moneyness 做 SVI 曲線平滑擬合，用擬合曲線重算 put 價格後微分：Q(S&lt;K) = e^{RT}·∂P/∂K。資料範圍之外以 SVI 翼部外插。</p>
+  <p><strong>門檻是相對「遠期價」</strong>（K/F），不是相對現貨。</p>
+  <p><strong>真實機率 P（γ）</strong>：__GAMMA__</p>
+  <p>技術上，假設隨機折現因子 M ∝ R<sup>−γ</sup>（冪次效用、消費等於市場報酬），則 p(s) ∝ q(s)·s<sup>γ</sup>，再正規化為 1；γ=1 為 log 效用。真實機率只應視為情境分析，不是預測。</p>
+  <p>近月只有幾天時，K/F &lt; 0.80 已是 3 個標準差以上，履約價常涵蓋不到，機率靠外插、對模型設定很敏感；這類日子會有 <code>threshold_0.80_extrapolated_*</code> 旗標，請謹慎解讀。</p>
+  <h3>品質旗標</h3>
+  <ul>
+    <li><code>official_missing</code>：官方 VIX 尚未公布，下一次更新會補上。</li>
+    <li><code>vix_diff_warn</code>：自算與公布 VIX 差距超過 0.6。</li>
+    <li><code>threshold_*_extrapolated_near/next</code>：該門檻落在該到期日的履約價範圍外，機率靠外插。</li>
+    <li><code>dPdK_out_of_range_*</code>、<code>negative_density_*</code>、<code>smile_fit_poor_*</code>：平滑曲線在資料範圍外違反無套利或擬合不佳；機率已做單調修正，但請謹慎使用。</li>
+    <li><code>svix_gt_vix</code>：僅提示，並非錯誤。</li>
+  </ul>
+  <p>方法版本：<span id="m-ver"></span></p>
+</div>
+__FOOTER__
+</main>
+<script src="assets/data.js"></script><script src="assets/common.js"></script></body></html>

@@ -1,11 +1,10 @@
 import json
-import re
 import subprocess
 
 import numpy as np
 import pandas as pd
 
-from twvix.report import build_html, build_payload
+from twvix.report import build_payload, build_site
 from twvix.store import publish_pages
 from test_store import repos, sh  # noqa: F401
 
@@ -31,22 +30,35 @@ def test_payload_shape_and_nan_to_null():
     assert set(p["crash"]["2026-11-09"]) == {"0.9", "0.8"} and set(p["crash"]["2026-11-09"]["0.9"]) == {"0", "1", "2", "4"}
 
 
-def test_html_embeds_valid_json_and_cannot_break_script_tag():
+def test_site_files_links_and_embedded_data():
     s, c, meta = frames()
-    html = build_html(s, c, meta)
-    m = re.search(r'<script id="payload" type="application/json">(.*?)</script>', html, re.S)
-    data = json.loads(m.group(1).replace("<\\/", "</"))
-    assert data["summary"][1]["quality_flags"].endswith("</script>")
-    assert "NaN" not in m.group(1) and "__PAYLOAD__" not in html
-    assert "非投資建議" in html and "localStorage" not in html and "sessionStorage" not in html
+    files = build_site(s, c, meta)
+    pages = ["index", "vix", "svix", "crash", "methodology"]
+    assert set(files) == {f"{p}.html" for p in pages} | {"assets/data.js", "assets/style.css", "assets/common.js"}
+    for p in pages:
+        h = files[f"{p}.html"]
+        assert "__NAV__" not in h and "__FOOTER__" not in h and "__GAMMA__" not in h
+        assert 'aria-current="page"' in h and "非投資建議" in h
+        for q in pages:
+            assert f'href="{q}.html"' in h  # 每頁都有完整導覽
+    assert "γ 是什麼" in files["index.html"] and "γ 是什麼" in files["crash.html"]
+    assert "crash.html?th=0.8" in files["index.html"] and "svix.html#spread" in files["index.html"]
+    js = files["assets/data.js"]
+    assert js.startswith("window.TW = ") and "NaN" not in js
+    data = json.loads(js[len("window.TW = "):].rstrip().rstrip(";").replace("<\\/", "</"))
+    assert data["summary"][1]["quality_flags"].endswith("</script>")  # 資料中的 </script> 已跳脫，不會截斷頁面
+    assert "</script>" not in js
+    blob = "".join(files.values())
+    assert "localStorage" not in blob and "sessionStorage" not in blob
 
 
 def test_publish_pages_orphan_single_commit_force_and_skip_unchanged(repos):
     _, work = repos
-    assert publish_pages(work, "<html>v1</html>") is True
-    assert sorted(sh(work, "git", "ls-tree", "-r", "--name-only", "origin/gh-pages").split()) == [".nojekyll", "index.html"]
-    assert publish_pages(work, "<html>v1</html>") is False  # 相同內容不推
-    assert publish_pages(work, "<html>v2</html>") is True  # force push 取代，不留歷史
+    v1 = {"index.html": "<html>v1</html>", "assets/a.js": "1"}
+    assert publish_pages(work, v1) is True
+    assert sorted(sh(work, "git", "ls-tree", "-r", "--name-only", "origin/gh-pages").split()) == [".nojekyll", "assets/a.js", "index.html"]
+    assert publish_pages(work, v1) is False  # 相同內容不推
+    assert publish_pages(work, {**v1, "index.html": "<html>v2</html>"}) is True  # force push 取代，不留歷史
     assert sh(work, "git", "rev-list", "--count", "origin/gh-pages").strip() == "1"
     assert sh(work, "git", "show", "origin/gh-pages:index.html") == "<html>v2</html>"
     assert subprocess.run(["git", "merge-base", "origin/gh-pages", "origin/main"], cwd=work).returncode != 0

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>VIX 走勢</title><link rel="stylesheet" href="assets/style.css"></head><body><main>
+__NAV__
+<h1>VIX 走勢</h1>
+<div class="sub">自算值使用 TAIFEX 每日結算價；與官方公布值對照。</div>
+<div class="bar" role="group" aria-label="日期範圍"><span class="lab">日期範圍</span>
+  <button class="chip" data-range="30" aria-pressed="false">近 30 天</button>
+  <button class="chip" data-range="90" aria-pressed="false">近 90 天</button>
+  <button class="chip" data-range="0" aria-pressed="true">全部</button></div>
+<div class="card" style="margin-top:12px"><p class="ctitle">VIX：自算與 TAIFEX 公布值</p><p class="cdesc">年化百分比</p>
+  <div class="chart"><canvas id="c-vix" role="img" aria-label="VIX 自算值與 TAIFEX 公布值的時間序列"></canvas></div></div>
+<div class="card" style="margin-top:12px"><p class="ctitle">自算 VIX − 公布 VIX</p><p class="cdesc">方法一致性檢查；超過 ±0.6 會在資料中加品質旗標</p>
+  <div class="chart short"><canvas id="c-diff" role="img" aria-label="自算 VIX 與公布值的差距"></canvas></div></div>
+<details class="card"><summary>以表格檢視</summary><div class="scroll"><table id="dtable"><thead><tr><th>日期</th><th>自算 VIX</th><th>公布 VIX</th><th>差</th></tr></thead><tbody></tbody></table></div></details>
+__FOOTER__
+</main>
+<script src="assets/data.js"></script><script src="assets/common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+function render() {
+  const v = visible(), labels = v.map(r => r.date);
+  draw('c-vix', labels, [
+    line('VIX（自算）', v.map(r => r.vix), css('--s1')),
+    line('VIX（TAIFEX 公布）', v.map(r => r.vix_taifex_published), css('--s2'), { borderDash: [6, 4], borderWidth: 1.5 }),
+  ], { y: { title: { display: true, text: '年化 %', color: css('--ink-2') } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}  ${num(c.parsed.y)}` } } });
+  draw('c-diff', labels, [line('自算 − 公布', v.map(r => r.vix_diff), css('--s2'))], { legend: false, tooltip: { callbacks: { label: c => ` ${num(c.parsed.y, 3)}` } } });
+  fillTable('#dtable', r => [r.date, num(r.vix), num(r.vix_taifex_published), num(r.vix_diff, 3)]);
+}
+bindRange(render);
+if (typeof Chart !== 'undefined') { render(); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render); } else { chartFallback(); fillTable('#dtable', r => [r.date, num(r.vix), num(r.vix_taifex_published), num(r.vix_diff, 3)]); }
+</script></body></html>

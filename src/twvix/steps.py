@@ -117,24 +117,28 @@ def check_complete(raw_dir: str, repo: str) -> None:
         raise SystemExit(f"data 分支缺 {len(missing)} 天：{', '.join(missing)}\n→ 執行 `uv run doit update_latest` 補上")
 
 
-def build_report(out: str, repo: str) -> None:
-    """讀 data 分支（遠端為準）產生 index.html。"""
+def build_report(out_dir: str, repo: str) -> None:
+    """讀 data 分支（遠端為準）產生多頁網站到 out_dir。"""
     import json as _json
 
-    from .report import build_html
+    from .report import build_site
 
     s, c = read_data_branch(Path(repo))
     if s.empty:
         raise SystemExit("data 分支沒有資料，無法產生報表")
     meta_raw = git(Path(repo), "show", "origin/data:meta.json", check=False).stdout or "{}"
-    html = build_html(s, c, _json.loads(meta_raw))
-    Path(out).parent.mkdir(parents=True, exist_ok=True)
-    Path(out).write_text(html, encoding="utf-8")
-    print(f"report: {out} ({len(s)} days)")
+    files = build_site(s, c, _json.loads(meta_raw))
+    for rel, body in files.items():
+        f = Path(out_dir) / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(body, encoding="utf-8")
+    print(f"site: {out_dir} ({len(files)} files, {len(s)} days)")
 
 
-def publish_pages_step(html: str, repo: str, push: bool) -> None:
+def publish_pages_step(site_dir: str, repo: str, push: bool) -> None:
     from .store import publish_pages
 
-    changed = publish_pages(Path(repo), Path(html).read_text(encoding="utf-8"), push=push)
+    root = Path(site_dir)
+    files = {str(p.relative_to(root)): p.read_text(encoding="utf-8") for p in sorted(root.rglob("*")) if p.is_file()}
+    changed = publish_pages(Path(repo), files, push=push)
     print("gh-pages:", "updated" if changed else "unchanged")

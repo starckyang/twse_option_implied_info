@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>台股 VIX / SVIX / 崩盤機率</title><link rel="stylesheet" href="assets/style.css"></head><body><main>
+__NAV__
+<h1>台股 VIX / SVIX / 崩盤機率</h1>
+<div class="sub" id="asof"></div>
+
+<h2>最新一天（點數值看走勢）</h2>
+<div class="stats" id="stats"></div>
+
+<h2>未來 30 天崩盤機率（相對遠期價）</h2>
+<div class="card">
+  <table id="ctable"><thead><tr><th>門檻</th><th>風險中性 Q</th><th>γ=1</th><th>γ=2</th><th>γ=4</th></tr></thead><tbody></tbody></table>
+  <div class="note" id="cnote" hidden></div>
+  <p class="explain">__GAMMA__</p>
+</div>
+
+<div class="bar" style="margin-top:20px">
+  <a class="btn" href="vix.html">VIX 走勢</a>
+  <a class="btn" href="svix.html">SVIX 走勢</a>
+  <a class="btn" href="crash.html">崩盤機率走勢</a>
+  <a class="btn" href="methodology.html">方法說明</a>
+</div>
+__FOOTER__
+</main>
+<script src="assets/data.js"></script><script src="assets/common.js"></script>
+<script>
+const last = S[S.length - 1];
+$('#asof').textContent = last ? `最新資料日期 ${last.date}　近月 ${last.near_expiry}、次月 ${last.next_expiry}` : '尚無資料';
+if (last) {
+  const st = [
+    ['VIX（自算）', num(last.vix), last.vix_taifex_published != null ? `公布值 ${num(last.vix_taifex_published)}，差 ${num(last.vix_diff, 2)}` : '公布值尚未取得', 'vix.html'],
+    ['SVIX', num(last.svix), '遠期價正規化', 'svix.html'],
+    ['VIX − SVIX', num(last.vix - last.svix), '左尾敏感度', 'svix.html#spread'],
+    ['Q（跌逾 10%）', pct(pOf(last.date, '0.9', '0')), '30 天，風險中性', 'crash.html?th=0.9'],
+    ['Q（跌逾 20%）', pct(pOf(last.date, '0.8', '0')), '30 天，風險中性', 'crash.html?th=0.8'],
+  ];
+  const box = $('#stats');
+  st.forEach(([k, v, n, href]) => {
+    const a = document.createElement('a'); a.className = 'stat'; a.href = href;
+    [['k', k], ['v', v], ['n', n], ['go', '看走勢 →']].forEach(([c, t]) => { const e = document.createElement('div'); e.className = c; e.textContent = t; a.appendChild(e); });
+    box.appendChild(a);
+  });
+  const tb = $('#ctable tbody');
+  [['0.9', '跌逾 10%（K/F<0.90）'], ['0.8', '跌逾 20%（K/F<0.80）']].forEach(([th, lab]) => {
+    const tr = document.createElement('tr');
+    [lab, ...GAMMAS.map(g => pct(pOf(last.date, th, g)))].forEach(t => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+  const notes = flagText(last.quality_flags), n = $('#cnote');
+  n.hidden = !notes.length; n.textContent = notes.length ? '注意：' + notes.join('；') : '';
+}
+</script></body></html>

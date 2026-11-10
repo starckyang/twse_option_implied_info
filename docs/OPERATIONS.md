@@ -73,14 +73,25 @@ TWVIX_START=2026-10-01 uv run doit         # 覆寫回補區間（預設 config.
 
 `_data/`、`_output/` 都是本機暫存，不進 git；正式結果只在 `data` 分支。
 
-## 報表（M5）
+## 網站（M5）
 
 ```bash
-uv run doit report          # 讀 data 分支 → _output/index.html（單一靜態頁，資料內嵌，Chart.js CDN）
+uv run doit report                          # 讀 data 分支 → _output/site/（多頁靜態網站）
 TWVIX_NO_PUSH=1 uv run doit publish_pages   # 只在本機準備 gh-pages
-uv run doit publish_pages   # 發布到 gh-pages（orphan、單一 commit、force push，不留歷史）
+uv run doit publish_pages                   # 發布到 gh-pages（orphan、單一 commit、force push，不留歷史）
 ```
 
-- 每日 workflow 在 `update_latest` 之後會跑 `doit report publish_pages`；`index.html` 與遠端相同時不會推送。
-- 第一次需要到 repo 的 Settings → Pages，Source 選 `Deploy from a branch`，Branch 選 `gh-pages` / `/ (root)`。
-- 報表內容：最新摘要卡、VIX 自算與公布值疊圖、SVIX、VIX−SVIX、自算與公布值的差距、崩盤機率時間序列（Q 與 γ=1,2,4，用線型區分；可切換門檻 0.90 / 0.80）、日期範圍篩選、表格檢視、方法說明、頁尾更新時間與「非投資建議」。不使用瀏覽器儲存。
+頁面：
+
+| 頁面 | 內容 |
+|---|---|
+| `index.html` | 只放最新結果：數值卡片（點進去看走勢）、30 天崩盤機率表、γ 的白話說明、四個按鈕 |
+| `vix.html` | VIX 自算與公布值疊圖、兩者差距；日期範圍篩選、表格檢視 |
+| `svix.html` | SVIX 與 VIX、VIX − SVIX |
+| `crash.html` | 30 天崩盤機率（Q 與 γ=1,2,4，以線型區分）；可切換門檻 0.90 / 0.80（`?th=0.8`）；提示框列出品質旗標 |
+| `methodology.html` | 資料口徑、公式、γ 假設、品質旗標、方法版本 |
+
+資料在 `assets/data.js`，樣式與共用腳本在 `assets/`，各頁共用。圖表用 Chart.js（jsDelivr CDN），不使用瀏覽器儲存。
+每日 workflow 在 `update_latest` 之後跑 `doit report publish_pages`；所有檔案與遠端相同時不推送。
+
+第一次需要到 repo 的 Settings → Pages，Source 選 `Deploy from a branch`，Branch 選 `gh-pages` / `/ (root)`。

@@ -133,15 +133,19 @@ def write_data_branch(
         git(repo, "worktree", "prune", check=False)
 
 
-def publish_pages(repo: Path, html: str, *, remote: str = "origin", branch: str = "gh-pages", push: bool = True) -> bool:
-    """把 index.html 與 .nojekyll 發布到 gh-pages：orphan、單一 commit、force push，不留歷史。
-    index.html 與遠端目前版本相同時不推（回傳 False）。"""
+def publish_pages(repo: Path, files: dict[str, str], *, remote: str = "origin", branch: str = "gh-pages", push: bool = True) -> bool:
+    """把網站檔案（{相對路徑: 內容}）與 .nojekyll 發布到 gh-pages：orphan、單一 commit、force push，不留歷史。
+    所有檔案內容與遠端目前版本相同時不推（回傳 False）。"""
     repo = Path(repo)
     has_remote = git(repo, "remote", "get-url", remote, check=False).returncode == 0
     if has_remote:
         git(repo, "fetch", remote, branch, check=False)
-        cur = git(repo, "show", f"{remote}/{branch}:index.html", check=False)
-        if cur.returncode == 0 and cur.stdout == html:
+        same = all(
+            (r := git(repo, "show", f"{remote}/{branch}:{path}", check=False)).returncode == 0 and r.stdout == body
+            for path, body in files.items()
+        )
+        listing = git(repo, "ls-tree", "-r", "--name-only", f"{remote}/{branch}", check=False)
+        if same and listing.returncode == 0 and set(listing.stdout.split()) == set(files) | {".nojekyll"}:
             return False
     tmp = Path(tempfile.mkdtemp(prefix="twvix_pages_"))
     wt = tmp / "wt"
@@ -150,7 +154,10 @@ def publish_pages(repo: Path, html: str, *, remote: str = "origin", branch: str 
         git(repo, "worktree", "add", "--detach", str(wt))
         git(wt, "checkout", "--orphan", tmp_branch)
         git(wt, "rm", "-rf", "--quiet", ".", check=False)
-        (wt / "index.html").write_text(html, encoding="utf-8")
+        for path, body in files.items():
+            f = wt / path
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(body, encoding="utf-8")
         (wt / ".nojekyll").write_text("", encoding="utf-8")
         git(wt, "add", "-A")
         git(wt, "-c", "user.name=twvix-bot", "-c", "user.email=twvix-bot@users.noreply.github.com",

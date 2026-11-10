@@ -8,8 +8,8 @@
   test                    pytest
   check_complete          預設流程最後一步：data 分支是否涵蓋所有交易日
   update_latest           第二條線：補上 data 分支漏的日子（含今天），一次 push
-  report                  用 data 分支的資料產生 _output/index.html
-  publish_pages           （不在預設流程）發布 index.html 到 gh-pages
+  report                  用 data 分支的資料產生 _output/site/
+  publish_pages           （不在預設流程）發布 _output/site/ 到 gh-pages
   publish_data            （不在預設流程）把本機 _output 整批 upsert 到 data 分支並 push
 
 區間用環境變數覆寫：TWVIX_START、TWVIX_END（預設 config.yaml 的 backfill_start 到台北時間今天）。
@@ -118,22 +118,22 @@ def task_update_latest():
 
 
 def task_report():
-    """用 data 分支的資料產生 _output/index.html（單一靜態頁，資料內嵌）。獨立於第一條線，可單獨執行。"""
+    """用 data 分支的資料產生多頁網站到 _output/site/（index、vix、svix、crash、methodology）。獨立於第一條線，可單獨執行。"""
     return {
-        "actions": ["uv run python -c \"from twvix.steps import build_report; build_report('_output/index.html', '.')\""],
-        "targets": ["_output/index.html"],
+        "actions": ["uv run python -c \"from twvix.steps import build_report; build_report('_output/site', '.')\""],
+        "targets": ["_output/site/index.html"],
         "uptodate": [False],  # 看的是遠端 data 分支
     }
 
 
 def task_publish_pages():
-    """把 _output/index.html 發布到 gh-pages（orphan、單一 commit、force push）。不在預設流程。
+    """把 _output/site/ 發布到 gh-pages（orphan、單一 commit、force push）。不在預設流程。
     TWVIX_NO_PUSH=1 只在本機準備。"""
     push = "False" if os.environ.get("TWVIX_NO_PUSH") else "True"
     return {
         "actions": ["uv run python -c \"from twvix.steps import publish_pages_step; "
-                    f"publish_pages_step('_output/index.html', '.', {push})\""],
-        "file_dep": ["_output/index.html"],
+                    f"publish_pages_step('_output/site', '.', {push})\""],
+        "file_dep": ["_output/site/index.html"],
         "uptodate": [False],
     }
 

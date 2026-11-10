@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SVIX 走勢</title><link rel="stylesheet" href="assets/style.css"></head><body><main>
+__NAV__
+<h1>SVIX 走勢</h1>
+<div class="sub">SVIX 是選擇權價格隱含的「簡單報酬」變異數（遠期價正規化），VIX 是「對數報酬」。</div>
+<div class="bar" role="group" aria-label="日期範圍"><span class="lab">日期範圍</span>
+  <button class="chip" data-range="30" aria-pressed="false">近 30 天</button>
+  <button class="chip" data-range="90" aria-pressed="false">近 90 天</button>
+  <button class="chip" data-range="0" aria-pressed="true">全部</button></div>
+<div class="card" style="margin-top:12px"><p class="ctitle">SVIX 與 VIX（自算）</p><p class="cdesc">年化百分比</p>
+  <div class="chart"><canvas id="c-svix" role="img" aria-label="SVIX 與 VIX 的時間序列"></canvas></div></div>
+<div class="card" style="margin-top:12px" id="spread"><p class="ctitle">VIX − SVIX</p><p class="cdesc">VIX 對下跌（對數報酬）較敏感，所以通常 VIX 較高；差距越大代表左尾越厚。這不是定理，只是常態。</p>
+  <div class="chart short"><canvas id="c-spread" role="img" aria-label="VIX 減 SVIX 的時間序列"></canvas></div></div>
+<details class="card"><summary>以表格檢視</summary><div class="scroll"><table id="dtable"><thead><tr><th>日期</th><th>SVIX</th><th>VIX</th><th>VIX − SVIX</th></tr></thead><tbody></tbody></table></div></details>
+__FOOTER__
+</main>
+<script src="assets/data.js"></script><script src="assets/common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+const rows = r => [r.date, num(r.svix), num(r.vix), num(r.vix - r.svix)];
+function render() {
+  const v = visible(), labels = v.map(r => r.date);
+  draw('c-svix', labels, [
+    line('SVIX', v.map(r => r.svix), css('--s3')),
+    line('VIX（自算）', v.map(r => r.vix), css('--s1'), { borderDash: [6, 4], borderWidth: 1.5 }),
+  ], { y: { title: { display: true, text: '年化 %', color: css('--ink-2') } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}  ${num(c.parsed.y)}` } } });
+  draw('c-spread', labels, [line('VIX − SVIX', v.map(r => r.vix - r.svix), css('--s1'), { fill: true, backgroundColor: css('--s1') + '22' })], { legend: false, tooltip: { callbacks: { label: c => ` VIX − SVIX  ${num(c.parsed.y)}` } } });
+  fillTable('#dtable', rows);
+}
+bindRange(render);
+if (typeof Chart !== 'undefined') { render(); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render); } else { chartFallback(); fillTable('#dtable', rows); }
+</script></body></html>
