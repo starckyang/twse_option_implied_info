@@ -19,7 +19,7 @@ from .fetch import download_raw, monthly_regular, parse_csv
 from .official import fetch_official_month
 from .pipeline import ToleranceError, load_config
 from .runner import SelfCheckError, evaluate_day
-from .store import CRASH_COLS, SUMMARY_COLS, build_meta, read_data_branch, write_data_branch
+from .store import CRASH_COLS, SUMMARY_COLS, build_meta, git, read_data_branch, write_data_branch
 
 DATA, OUT = Path("_data"), Path("_output")
 
@@ -115,3 +115,26 @@ def check_complete(raw_dir: str, repo: str) -> None:
     print(f"預期 {len(expected)} 個交易日，data 分支有 {len(expected & set(s['date']))} 個")
     if missing:
         raise SystemExit(f"data 分支缺 {len(missing)} 天：{', '.join(missing)}\n→ 執行 `uv run doit update_latest` 補上")
+
+
+def build_report(out: str, repo: str) -> None:
+    """讀 data 分支（遠端為準）產生 index.html。"""
+    import json as _json
+
+    from .report import build_html
+
+    s, c = read_data_branch(Path(repo))
+    if s.empty:
+        raise SystemExit("data 分支沒有資料，無法產生報表")
+    meta_raw = git(Path(repo), "show", "origin/data:meta.json", check=False).stdout or "{}"
+    html = build_html(s, c, _json.loads(meta_raw))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    Path(out).write_text(html, encoding="utf-8")
+    print(f"report: {out} ({len(s)} days)")
+
+
+def publish_pages_step(html: str, repo: str, push: bool) -> None:
+    from .store import publish_pages
+
+    changed = publish_pages(Path(repo), Path(html).read_text(encoding="utf-8"), push=push)
+    print("gh-pages:", "updated" if changed else "unchanged")

@@ -43,7 +43,7 @@ TWVIX_FULL=1 uv run doit update_latest       # 從 backfill_start 全部掃描�
 ## 尚待實測（需要 GitHub repo）
 
 - Actions runner 能否下載 TAIFEX（站點有 Cloudflare）。
-- 排程時間：TAIFEX 當日一般時段資料實際幾點可抓到。目前 14:30 / 16:30 / 19:30（台北時間）是猜的。
+- 排程時間：TAIFEX 當日一般時段資料實際幾點可抓到。目前 18:00（台北時間）是猜的，每天只跑一次。
 - 若 Actions 被擋，`fetch.py` 是唯一需要改的地方。
 
 ## 用 doit 串流程（`dodo.py`）
@@ -72,3 +72,15 @@ TWVIX_START=2026-10-01 uv run doit         # 覆寫回補區間（預設 config.
 若重算後輸出內容沒變，下游的 `combine` 也會跳過。
 
 `_data/`、`_output/` 都是本機暫存，不進 git；正式結果只在 `data` 分支。
+
+## 報表（M5）
+
+```bash
+uv run doit report          # 讀 data 分支 → _output/index.html（單一靜態頁，資料內嵌，Chart.js CDN）
+TWVIX_NO_PUSH=1 uv run doit publish_pages   # 只在本機準備 gh-pages
+uv run doit publish_pages   # 發布到 gh-pages（orphan、單一 commit、force push，不留歷史）
+```
+
+- 每日 workflow 在 `update_latest` 之後會跑 `doit report publish_pages`；`index.html` 與遠端相同時不會推送。
+- 第一次需要到 repo 的 Settings → Pages，Source 選 `Deploy from a branch`，Branch 選 `gh-pages` / `/ (root)`。
+- 報表內容：最新摘要卡、VIX 自算與公布值疊圖、SVIX、VIX−SVIX、自算與公布值的差距、崩盤機率時間序列（Q 與 γ=1,2,4，用線型區分；可切換門檻 0.90 / 0.80）、日期範圍篩選、表格檢視、方法說明、頁尾更新時間與「非投資建議」。不使用瀏覽器儲存。

@@ -7,3 +7,4 @@ _data/
 _output/
 .doit.db*
 .doit_test_ok
+.claude/

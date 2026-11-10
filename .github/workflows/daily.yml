@@ -2,9 +2,8 @@ name: daily
 
 on:
   schedule:
-    # 台北時間 平日 14:30 / 16:30 / 19:30（UTC 06:30 / 08:30 / 11:30）。
-    # TAIFEX 實際公布時間尚未實測，多跑幾次；同一天重跑只會覆蓋該日（upsert），沒有變化就不 commit。
-    - cron: "30 6,8,11 * * 1-5"
+    # 台北時間 平日 18:00（UTC 10:00）。漏掉的日子與官方 VIX 晚公布的日子，下一次會自動補上。
+    - cron: "0 10 * * 1-5"
   workflow_dispatch:
     inputs:
       full:
@@ -38,3 +37,6 @@ jobs:
         env:
           TWVIX_FULL: ${{ github.event.inputs.full == 'true' && '1' || '' }}
         run: uv run doit update_latest
+
+      - name: Build report and publish to gh-pages
+        run: uv run doit report publish_pages

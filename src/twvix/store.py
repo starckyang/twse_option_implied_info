@@ -131,3 +131,34 @@ def write_data_branch(
     finally:
         git(repo, "worktree", "remove", "--force", str(wt), check=False)
         git(repo, "worktree", "prune", check=False)
+
+
+def publish_pages(repo: Path, html: str, *, remote: str = "origin", branch: str = "gh-pages", push: bool = True) -> bool:
+    """把 index.html 與 .nojekyll 發布到 gh-pages：orphan、單一 commit、force push，不留歷史。
+    index.html 與遠端目前版本相同時不推（回傳 False）。"""
+    repo = Path(repo)
+    has_remote = git(repo, "remote", "get-url", remote, check=False).returncode == 0
+    if has_remote:
+        git(repo, "fetch", remote, branch, check=False)
+        cur = git(repo, "show", f"{remote}/{branch}:index.html", check=False)
+        if cur.returncode == 0 and cur.stdout == html:
+            return False
+    tmp = Path(tempfile.mkdtemp(prefix="twvix_pages_"))
+    wt = tmp / "wt"
+    tmp_branch = "twvix-pages-tmp"
+    try:
+        git(repo, "worktree", "add", "--detach", str(wt))
+        git(wt, "checkout", "--orphan", tmp_branch)
+        git(wt, "rm", "-rf", "--quiet", ".", check=False)
+        (wt / "index.html").write_text(html, encoding="utf-8")
+        (wt / ".nojekyll").write_text("", encoding="utf-8")
+        git(wt, "add", "-A")
+        git(wt, "-c", "user.name=twvix-bot", "-c", "user.email=twvix-bot@users.noreply.github.com",
+            "commit", "-q", "-m", "pages: update report")
+        if push and has_remote:
+            git(wt, "push", "--force", remote, f"HEAD:refs/heads/{branch}")
+        return True
+    finally:
+        git(repo, "worktree", "remove", "--force", str(wt), check=False)
+        git(repo, "branch", "-D", tmp_branch, check=False)
+        git(repo, "worktree", "prune", check=False)
