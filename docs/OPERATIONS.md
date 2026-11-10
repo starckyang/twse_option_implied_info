@@ -88,6 +88,7 @@ uv run doit publish_pages                   # 發布到 gh-pages（orphan、單�
 | `index.html` | 只放最新結果：數值卡片（點進去看走勢）、30 天崩盤機率表、γ 的白話說明、四個按鈕 |
 | `vix.html` | VIX 自算與公布值疊圖、兩者差距；日期範圍篩選、表格檢視 |
 | `svix.html` | SVIX 與 VIX、VIX − SVIX |
+| `bound.html` | SVIX² 作為預期超額報酬下界（Martin 2017）：30 天下界走勢、統計表（最新/平均/分位/最小/最大）、資料表與 CSV 下載（目前日期範圍） |
 | `crash.html` | 30 天崩盤機率（Q 與 γ=1,2,4，以線型區分）；可切換門檻 0.90 / 0.80（`?th=0.8`）；提示框列出品質旗標 |
 | `methodology.html` | 資料口徑、公式、γ 假設、品質旗標、方法版本 |
 

@@ -33,15 +33,16 @@ def test_payload_shape_and_nan_to_null():
 def test_site_files_links_and_embedded_data():
     s, c, meta = frames()
     files = build_site(s, c, meta)
-    pages = ["index", "vix", "svix", "crash", "methodology"]
+    pages = ["index", "vix", "svix", "bound", "crash", "methodology"]
     assert set(files) == {f"{p}.html" for p in pages} | {"assets/data.js", "assets/style.css", "assets/common.js"}
     for p in pages:
         h = files[f"{p}.html"]
-        assert "__NAV__" not in h and "__FOOTER__" not in h and "__GAMMA__" not in h
+        assert all(x not in h for x in ("__NAV__", "__FOOTER__", "__GAMMA__", "__BOUND__"))
         assert 'aria-current="page"' in h and "非投資建議" in h
         for q in pages:
             assert f'href="{q}.html"' in h  # 每頁都有完整導覽
     assert "γ 是什麼" in files["index.html"] and "γ 是什麼" in files["crash.html"]
+    assert "bound.html" in files["index.html"] and "NCC" in files["bound.html"] and "NCC" in files["methodology.html"]
     assert "crash.html?th=0.8" in files["index.html"] and "svix.html#spread" in files["index.html"]
     js = files["assets/data.js"]
     assert js.startswith("window.TW = ") and "NaN" not in js
@@ -64,3 +65,21 @@ def test_publish_pages_orphan_single_commit_force_and_skip_unchanged(repos):
     assert subprocess.run(["git", "merge-base", "origin/gh-pages", "origin/main"], cwd=work).returncode != 0
     assert sh(work, "git", "branch", "--list", "twvix-pages-tmp").strip() == ""
     assert sh(work, "git", "worktree", "list").strip().count("\n") == 0
+
+
+def test_premium_bound_formula():
+    from twvix.report import premium_bound
+
+    ann, d30 = premium_bound(41.68, 0.015)
+    assert ann == np.float64(0.4168**2)
+    assert abs(d30 - np.exp(0.015 * 30 / 365) * 0.4168**2 * 30 / 365) < 1e-15
+    assert 0.0142 < d30 < 0.0144  # 約 1.43%
+    assert premium_bound(None, 0.015) == (None, None) and premium_bound(float("nan"), 0.015) == (None, None)
+    # SVIX 越高，下界越高；rate=0 時不含折現項
+    assert premium_bound(20, 0.0)[1] == (0.2**2) * 30 / 365
+
+
+def test_payload_has_bound_fields():
+    s, c, meta = frames()
+    p = build_payload(s, c, meta)
+    assert abs(p["summary"][0]["lb_ann"] - 0.448**2) < 1e-12 and 0 < p["summary"][0]["lb_30d"] < p["summary"][0]["lb_ann"]

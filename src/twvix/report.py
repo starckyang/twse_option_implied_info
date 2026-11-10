@@ -14,7 +14,16 @@ SITE = Path(__file__).with_name("site")
 SUMMARY_FIELDS = [
     "date", "vix", "svix", "vix_taifex_published", "vix_diff", "near_expiry", "next_expiry", "quality_flags",
 ]
-PAGES = [("index", "最新結果"), ("vix", "VIX"), ("svix", "SVIX"), ("crash", "崩盤機率"), ("methodology", "方法說明")]
+PAGES = [
+    ("index", "最新結果"), ("vix", "VIX"), ("svix", "SVIX"), ("bound", "報酬下界"), ("crash", "崩盤機率"), ("methodology", "方法說明"),
+]
+HORIZON_DAYS = 30
+BOUND = (
+    "<b>這是什麼？</b>Martin (2017) 證明：在一個常見的條件下（負相關條件 NCC），"
+    "市場在未來一段時間的<b>預期超額報酬</b>至少是 Rf·SVIX²·T。所以 SVIX² 可以當作預期報酬的下界；"
+    "對數效用（γ=1）的投資人，這個下界剛好是等號。"
+    "這是模型下的下界，不是預測；標的是加權指數（價格指數，不含股利），我們的 SVIX 又是遠期價正規化版本，所以是近似值。"
+)
 GAMMA = (
     "<b>γ 是什麼？</b>γ 代表風險趨避的程度。γ 越大，投資人越把壞情況看得越糟，"
     "選擇權價格裡有一部分就是這種「怕」；把它扣掉之後，實際上會大跌的機率反而越低。"
@@ -30,11 +39,23 @@ def _clean(v):
     return None if pd.isna(v) else v
 
 
+def premium_bound(svix_pct: float | None, rate: float, days: int = HORIZON_DAYS) -> tuple[float | None, float | None]:
+    """Martin (2017)：預期超額報酬下界 E[R] − Rf ≥ Rf·SVIX²·T。
+    回傳 (年化 SVIX², days 天下界)，皆為小數（0.17 = 17%）。SVIX 為年化百分比。"""
+    if svix_pct is None or not np.isfinite(svix_pct):
+        return None, None
+    ann = (svix_pct / 100) ** 2
+    t = days / 365
+    return ann, float(np.exp(rate * t)) * ann * t
+
+
 def build_payload(summary: pd.DataFrame, crash: pd.DataFrame, meta: dict) -> dict:
     s = summary.sort_values("date")
     rows = [{k: _clean(r[k]) for k in SUMMARY_FIELDS} for _, r in s.iterrows()]
+    rate = float((meta.get("params") or {}).get("risk_free_rate") or 0.0)
     for r in rows:
         r["quality_flags"] = r["quality_flags"] or ""
+        r["lb_ann"], r["lb_30d"] = premium_bound(r["svix"], rate)
     # 只內嵌 30 天機率：{date: {threshold: {gamma: prob}}}，key 皆為字串
     c = crash[crash["horizon"] == "30d"]
     out: dict = {}
@@ -68,5 +89,5 @@ def build_site(summary: pd.DataFrame, crash: pd.DataFrame, meta: dict) -> dict[s
     }
     for name, _ in PAGES:
         html = (SITE / f"{name}.html").read_text(encoding="utf-8")
-        files[f"{name}.html"] = html.replace("__NAV__", _nav(name)).replace("__FOOTER__", FOOTER).replace("__GAMMA__", GAMMA)
+        files[f"{name}.html"] = html.replace("__NAV__", _nav(name)).replace("__FOOTER__", FOOTER).replace("__GAMMA__", GAMMA).replace("__BOUND__", BOUND)
     return files

@@ -29,7 +29,7 @@ h3 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; }
 .sub { color: var(--ink-2); font-size: 14px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 4px; }
-a.stat { display: block; color: inherit; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+a.stat, div.stat { display: block; color: inherit; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
 a.stat:hover, a.stat:focus-visible { border-color: var(--ink-3); outline: none; }
 a.stat:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
 .stat .k { color: var(--ink-2); font-size: 13px; }
