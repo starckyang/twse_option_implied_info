@@ -1,7 +1,7 @@
 {
   "method_version": "1",
-  "last_updated": "2026-11-10T11:31:29+08:00",
-  "last_trade_date": "2026-11-09",
+  "last_updated": "2026-11-11T01:29:15+08:00",
+  "last_trade_date": "2026-11-10",
   "params": {
     "risk_free_rate": 0.015,
     "price_basis": "settle",
