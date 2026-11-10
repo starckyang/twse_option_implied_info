@@ -1,0 +1,16 @@
+# 無風險利率：先用固定常數（年化、連續複利）。之後可換成 TAIBOR。
+risk_free_rate: 0.015
+# price_basis: bid_ask_mid（最後最佳買賣價中價）或 settle（每日結算價）
+price_basis: settle
+settle_min_valid: 0.1
+min_strikes: 5
+# 已知休市日（YYYY-MM-DD），用於判斷「未來」的交易日。每年更新。
+holidays: []
+
+# 與 TAIFEX 公布 VIX 的差距容忍值（絕對值，單位：VIX 點）。依 M2 的 66 天回補（標準差 0.146、最大 0.72）。
+vix_diff_warn: 0.6   # 超過：記 quality_flags
+vix_diff_fail: 2.0   # 超過：不寫入並讓 job 失敗
+
+# 崩盤機率：門檻為相對「遠期價」的 moneyness（K/F），γ 為冪次效用的使用者參數
+crash_thresholds: [0.90, 0.80]
+gammas: [0, 1, 2, 4]

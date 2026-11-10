@@ -1,0 +1,44 @@
+name: daily
+
+on:
+  schedule:
+    # 台北時間 平日 14:30 / 16:30 / 19:30（UTC 06:30 / 08:30 / 11:30）。
+    # TAIFEX 實際公布時間尚未實測，多跑幾次；同一天重跑只會覆蓋該日（upsert），沒有變化就不 commit。
+    - cron: "30 6,8,11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "YYYY-MM-DD（補資料用；留空＝台北時間今天）"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: twvix-data
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        run: uv run pytest -q
+
+      - name: Compute and upsert to data branch
+        run: |
+          DATE="${{ github.event.inputs.date }}"
+          if [ -n "$DATE" ]; then
+            uv run twvix run --date "$DATE"
+          else
+            uv run twvix run
+          fi
