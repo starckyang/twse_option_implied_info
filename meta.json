@@ -1,0 +1,28 @@
+{
+  "method_version": "1",
+  "last_updated": "2026-11-10T11:31:29+08:00",
+  "last_trade_date": "2026-11-09",
+  "params": {
+    "risk_free_rate": 0.015,
+    "price_basis": "settle",
+    "settle_min_valid": 0.1,
+    "min_strikes": 5,
+    "crash_thresholds": [
+      0.9,
+      0.8
+    ],
+    "gammas": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "vix_diff_warn": 0.6,
+    "vix_diff_fail": 2.0
+  },
+  "notes": [
+    "SVIX 為遠期價正規化版本；與 Martin 以現貨正規化的版本在有股利時略有差異。",
+    "崩盤門檻為相對遠期價的 moneyness（K/F）；真實機率版本取決於冪次效用假設，γ 為使用者參數。",
+    "price_basis=settle 時使用 TAIFEX 每日結算價；利率為固定常數而非 TAIBOR。"
+  ]
+}
