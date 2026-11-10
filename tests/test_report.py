@@ -83,3 +83,18 @@ def test_payload_has_bound_fields():
     s, c, meta = frames()
     p = build_payload(s, c, meta)
     assert abs(p["summary"][0]["lb_ann"] - 0.448**2) < 1e-12 and 0 < p["summary"][0]["lb_30d"] < p["summary"][0]["lb_ann"]
+
+
+def test_asset_urls_are_versioned_by_content():
+    s, c, meta = frames()
+    a = build_site(s, c, meta)
+    b = build_site(s.assign(vix=s["vix"] + 1), c, meta)  # 資料變 → data.js 的 hash 變；css/common.js 不變
+    import re as _re
+
+    def vers(files, page, asset):
+        return _re.search(rf'{_re.escape(asset)}\?v=([0-9a-f]{{8}})', files[page]).group(1)
+
+    for page in ("index.html", "bound.html", "crash.html"):
+        assert vers(a, page, "assets/data.js") != vers(b, page, "assets/data.js")
+        assert vers(a, page, "assets/common.js") == vers(b, page, "assets/common.js")
+    assert vers(a, "index.html", "assets/data.js") == vers(a, "vix.html", "assets/data.js")  # 各頁一致

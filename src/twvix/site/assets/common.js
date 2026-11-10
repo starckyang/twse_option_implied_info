@@ -3,8 +3,8 @@ const GAMMAS = ['0', '1', '2', '4'];
 const GLAB = { '0': 'Q（γ=0）', '1': '真實 γ=1', '2': '真實 γ=2', '4': '真實 γ=4' };
 const DASH = { '0': [], '1': [8, 4], '2': [4, 3], '4': [1, 3] };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const pct = (x, d = 1) => x == null || isNaN(x) ? '—' : (x * 100).toFixed(d) + '%';
-const num = (x, d = 2) => x == null || isNaN(x) ? '—' : Number(x).toFixed(d);
+const pct = (x, d = 1) => x == null || !isFinite(x) ? '—' : (x * 100).toFixed(d) + '%';
+const num = (x, d = 2) => x == null || !isFinite(x) ? '—' : Number(x).toFixed(d);
 const pOf = (date, th, g) => { const r = C[date]; return r && r[th] ? r[th][g] : null; };
 const $ = (s, r = document) => r.querySelector(s);
 

@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -87,7 +88,13 @@ def build_site(summary: pd.DataFrame, crash: pd.DataFrame, meta: dict) -> dict[s
         "assets/style.css": (SITE / "assets" / "style.css").read_text(encoding="utf-8"),
         "assets/common.js": (SITE / "assets" / "common.js").read_text(encoding="utf-8"),
     }
+    # 資源網址加內容 hash：GitHub Pages 的資源會被瀏覽器快取約 10 分鐘，
+    # 否則可能出現「新頁面配舊資料」（例如舊的 data.js 沒有新欄位）。
+    ver = {path: hashlib.sha1(body.encode("utf-8")).hexdigest()[:8] for path, body in files.items()}
     for name, _ in PAGES:
         html = (SITE / f"{name}.html").read_text(encoding="utf-8")
-        files[f"{name}.html"] = html.replace("__NAV__", _nav(name)).replace("__FOOTER__", FOOTER).replace("__GAMMA__", GAMMA).replace("__BOUND__", BOUND)
+        html = html.replace("__NAV__", _nav(name)).replace("__FOOTER__", FOOTER).replace("__GAMMA__", GAMMA).replace("__BOUND__", BOUND)
+        for path, h in ver.items():
+            html = html.replace(f'"{path}"', f'"{path}?v={h}"')
+        files[f"{name}.html"] = html
     return files

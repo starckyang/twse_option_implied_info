@@ -34,7 +34,7 @@ const quant = (a, q) => { const s = a.slice().sort((x, y) => x - y), i = (s.leng
 function renderStats() {
   const v = visible(), last = S[S.length - 1];
   if (!last) return;
-  const pctRank = v.length ? v.filter(r => r.lb_30d <= last.lb_30d).length / v.length : null;
+  const pctRank = v.length && last.lb_30d != null ? v.filter(r => r.lb_30d != null && r.lb_30d <= last.lb_30d).length / v.length : null;
   const box = $('#stats'); box.textContent = '';
   [['30 天下界（最新）', pct(last.lb_30d, 2), `${last.date}`],
    ['年化 SVIX²（最新）', pct(last.lb_ann, 1), `SVIX ${num(last.svix)}`],
@@ -46,9 +46,10 @@ function renderStats() {
   const tb = $('#stable tbody'); tb.textContent = '';
   const col = f => v.map(f).filter(x => x != null && isFinite(x));
   const A = col(r => r.lb_30d), B = col(r => r.lb_ann), C = col(r => r.svix);
-  [['最新', last.lb_30d, last.lb_ann, last.svix], ['平均', ...[A, B, C].map(a => a.reduce((x, y) => x + y, 0) / a.length)],
-   ['中位數', ...[A, B, C].map(a => quant(a, .5))], ['25 分位', ...[A, B, C].map(a => quant(a, .25))], ['75 分位', ...[A, B, C].map(a => quant(a, .75))],
-   ['最小', ...[A, B, C].map(a => Math.min(...a))], ['最大', ...[A, B, C].map(a => Math.max(...a))]].forEach(([lab, a, b, c]) => {
+  const ag = f => [A, B, C].map(a => a.length ? f(a) : null);  // 空資料一律顯示「—」，不顯示 Infinity / NaN
+  [['最新', last.lb_30d, last.lb_ann, last.svix], ['平均', ...ag(a => a.reduce((x, y) => x + y, 0) / a.length)],
+   ['中位數', ...ag(a => quant(a, .5))], ['25 分位', ...ag(a => quant(a, .25))], ['75 分位', ...ag(a => quant(a, .75))],
+   ['最小', ...ag(a => Math.min(...a))], ['最大', ...ag(a => Math.max(...a))]].forEach(([lab, a, b, c]) => {
     const tr = document.createElement('tr');
     [lab, pct(a, 2), pct(b, 1), num(c)].forEach(t => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
     tb.appendChild(tr);
