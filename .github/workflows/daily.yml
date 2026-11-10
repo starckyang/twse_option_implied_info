@@ -7,10 +7,10 @@ on:
     - cron: "30 6,8,11 * * 1-5"
   workflow_dispatch:
     inputs:
-      date:
-        description: "YYYY-MM-DD（補資料用；留空＝台北時間今天）"
+      full:
+        description: "true＝從 backfill_start 全部掃描補漏（預設只掃最近 14 天）"
         required: false
-        default: ""
+        default: "false"
 
 permissions:
   contents: write
@@ -34,11 +34,7 @@ jobs:
       - name: Test
         run: uv run pytest -q
 
-      - name: Compute and upsert to data branch
-        run: |
-          DATE="${{ github.event.inputs.date }}"
-          if [ -n "$DATE" ]; then
-            uv run twvix run --date "$DATE"
-          else
-            uv run twvix run
-          fi
+      - name: Update latest (fill gaps incl. today) and push to data branch
+        env:
+          TWVIX_FULL: ${{ github.event.inputs.full == 'true' && '1' || '' }}
+        run: uv run doit update_latest

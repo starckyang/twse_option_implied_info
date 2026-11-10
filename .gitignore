@@ -3,3 +3,7 @@ samples/raw/
 __pycache__/
 .cache/
 out/
+_data/
+_output/
+.doit.db*
+.doit_test_ok

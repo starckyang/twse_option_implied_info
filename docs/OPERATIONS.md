@@ -8,28 +8,30 @@
 | `data` | `summary.csv`、`crash.csv`、`meta.json`（orphan，保留歷史，一般 push） |
 | `gh-pages` | 報表（M5 才加；orphan，每次 force push） |
 
-## 每日流程（`twvix run`）
+## 兩條線
 
-1. 下載當日 TXO；沒有「一般」時段列（假日或尚未公布）→ 結束，**不寫入**，exit 0。
-2. 計算 VIX、SVIX、崩盤機率；與官方 VIX 比對。官方值尚未公布時照寫，旗標 `official_missing`，之後重跑會覆蓋成完整的一天。
-3. 自檢，任一失敗 → **不寫入**、exit 1（job 失敗，GitHub 會通知）：
-   - VIX、SVIX 不是正的有限數
-   - 近月或次月履約價數 < `min_strikes`
-   - K0 > F
-   - 崩盤機率對 γ 不單調
-   - 與官方 VIX 差距 > `vix_diff_fail`（2.0）
-4. upsert 到 `data` 分支（以日期為 key）。資料沒變就不 commit。
+共用同一個 `evaluate_day()`（計算 → 與官方 VIX 比對 → 自檢）和同一個 `data` 分支。
 
-差距 > `vix_diff_warn`（0.6）只記 `vix_diff_warn` 旗標。
-
-## 指令
+**第二條：`update_latest`（排程每天跑這個）**
 
 ```bash
-uv run twvix day 2026-11-09                 # 只印出，不寫入
-uv run twvix run --date 2026-11-09 --no-push # 寫到本機 data 分支，不 push
-uv run twvix backfill 2026-08-03 2026-11-09 --store   # 回補並寫入 data 分支（最後 push 一次）
-uv run twvix backfill 2026-08-03 2026-11-09 --crash   # 回補並輸出到 out/（分析用，不寫 data）
+uv run doit update_latest                    # 補 data 分支漏的日子（含今天）並 push
+TWVIX_NO_PUSH=1 uv run doit update_latest    # 只寫本機
+TWVIX_FULL=1 uv run doit update_latest       # 從 backfill_start 全部掃描補漏
 ```
+
+1. 讀 `data` 分支，掃描「最後一天往前 14 天」（空分支或 `--full` 則從 `backfill_start`）到今天。
+2. 要補的日子：`data` 分支沒有、但 TAIFEX 有「一般」時段資料的交易日；或旗標 `official_missing` 而官方 VIX 現在已公布的日子。
+3. 假日、週末、今天尚未公布：本來就沒有「一般」時段資料，不算漏，也不算失敗。
+4. 逐日 `evaluate_day`，通過的一次 push；有任何一天失敗（自檢或與官方差距 > `vix_diff_fail`）→ 該天不寫入、其他天照寫，最後 exit 1 讓 job 失敗。
+5. 沒有變化就不 commit；重跑安全。
+
+自檢（任一不過就不寫入該天）：VIX/SVIX 為正的有限數、近月與次月履約價數 ≥ `min_strikes`、K0 ≤ F、崩盤機率對 γ 單調、與官方 VIX 差距 ≤ `vix_diff_fail`（2.0）。差距 > `vix_diff_warn`（0.6）只記 `vix_diff_warn` 旗標。
+
+**第一條：從頭建（`uv run doit`）**
+
+`test → fetch_raw → fetch_official → compute → combine → check_complete`，細節見下一節。
+最後的 `check_complete` 只讀 `data` 分支：原始資料裡有「一般」時段資料的交易日，`data` 分支是否都有。缺了會列出日期並提示跑 `doit update_latest`；補完後再跑就會通過。
 
 ## 保活與通知
 
@@ -43,3 +45,30 @@ uv run twvix backfill 2026-08-03 2026-11-09 --crash   # 回補並輸出到 out/�
 - Actions runner 能否下載 TAIFEX（站點有 Cloudflare）。
 - 排程時間：TAIFEX 當日一般時段資料實際幾點可抓到。目前 14:30 / 16:30 / 19:30（台北時間）是猜的。
 - 若 Actions 被擋，`fetch.py` 是唯一需要改的地方。
+
+## 用 doit 串流程（`dodo.py`）
+
+每個步驟有明確的輸入檔與輸出檔，doit 以檔案內容（md5）判斷哪些步驟需要重跑，其餘跳過。
+
+```bash
+uv run doit list --all        # 看所有任務
+uv run doit                   # 預設流程：test → fetch → compute → combine
+uv run doit compute:202610    # 只重算 10 月
+uv run doit combine           # 只重新合併與統計
+uv run doit publish_data      # 寫入並 push data 分支（不在預設流程）
+TWVIX_NO_PUSH=1 uv run doit publish_data   # 只寫本機 data 分支
+TWVIX_START=2026-10-01 uv run doit         # 覆寫回補區間（預設 config.yaml 的 backfill_start 到今天）
+```
+
+| 任務 | 輸入 | 輸出 | 何時重跑 |
+|---|---|---|---|
+| `fetch_raw:YYYYMM` | 區間與結束日 | `_data/raw/` | 結束日（每天）或區間改變 |
+| `fetch_official:YYYYMM` | 結束日 | `_data/official/` | 每天一次 |
+| `compute:YYYYMM` | 該月原始檔、官方檔、`config.yaml`、計算程式 | `_output/months/` | 這些輸入的內容有變 |
+| `combine` | 各月輸出 | `_output/summary.csv` 等 | 各月輸出的內容有變 |
+| `test` | 程式、測試、設定 | `.doit_test_ok` | 這些檔案有變 |
+
+實測行為：不改任何東西 → 全部跳過；刪掉某月輸出 → 只重算該月；改計算程式 → 重跑 test 與所有 compute，但不重新下載。
+若重算後輸出內容沒變，下游的 `combine` 也會跳過。
+
+`_data/`、`_output/` 都是本機暫存，不進 git；正式結果只在 `data` 分支。

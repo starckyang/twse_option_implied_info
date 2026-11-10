@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from twvix.pipeline import ToleranceError
-from twvix.runner import SelfCheckError, run_day
 from twvix.store import CRASH_COLS, SUMMARY_COLS, upsert, write_data_branch
 from helpers import synthetic_quotes
 
@@ -106,44 +104,3 @@ def test_fresh_clone_reads_remote_history(repos, tmp_path):
     write_data_branch(other, *fake_frames("2026-11-10"), {"x": 1})
     df = pd.read_csv(pd.io.common.StringIO(sh(other, "git", "show", "origin/data:summary.csv")))
     assert list(df["date"]) == ["2026-11-09", "2026-11-10"]
-
-
-def test_run_day_no_data_does_not_write(repos):
-    _, work = repos
-    assert run_day(D1, CFG, work, df=day_df(D1).iloc[0:0], official=None) == "no_data"
-    assert subprocess.run(["git", "rev-parse", "--verify", "origin/data"], cwd=work, capture_output=True).returncode != 0
-
-
-def test_run_day_writes_then_unchanged(repos):
-    _, work = repos
-    df = day_df(D1)
-    assert run_day(D1, CFG, work, df=df, official=None) == "written"
-    assert run_day(D1, CFG, work, df=df, official=None) == "unchanged"
-    s = pd.read_csv(pd.io.common.StringIO(sh(work, "git", "show", "origin/data:summary.csv")))
-    assert "official_missing" in s.loc[0, "quality_flags"]
-    assert abs(s.loc[0, "vix"] - 20) < 0.5 and s.loc[0, "method_version"] == 1
-    c = pd.read_csv(pd.io.common.StringIO(sh(work, "git", "show", "origin/data:crash.csv")))
-    assert len(c) == 3 * 2 * 4 and set(c.horizon) == {"near", "next", "30d"}
-
-
-def test_official_publish_later_overwrites_flag(repos):
-    _, work = repos
-    df = day_df(D1)
-    run_day(D1, CFG, work, df=df, official=None)
-    assert run_day(D1, CFG, work, df=df, official=20.05) == "written"
-    s = pd.read_csv(pd.io.common.StringIO(sh(work, "git", "show", "origin/data:summary.csv")))
-    assert len(s) == 1 and s.loc[0, "vix_taifex_published"] == 20.05 and "official_missing" not in str(s.loc[0, "quality_flags"])
-
-
-def test_tolerance_failure_writes_nothing(repos):
-    _, work = repos
-    with pytest.raises(ToleranceError):
-        run_day(D1, CFG, work, df=day_df(D1), official=30.0)
-    assert subprocess.run(["git", "rev-parse", "--verify", "origin/data"], cwd=work, capture_output=True).returncode != 0
-
-
-def test_self_check_failure_writes_nothing(repos):
-    _, work = repos
-    with pytest.raises(SelfCheckError):
-        run_day(D1, {**CFG, "min_strikes": 10_000}, work, df=day_df(D1), official=None)
-    assert subprocess.run(["git", "rev-parse", "--verify", "origin/data"], cwd=work, capture_output=True).returncode != 0

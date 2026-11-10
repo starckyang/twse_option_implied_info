@@ -45,6 +45,18 @@ def upsert(old: pd.DataFrame, new: pd.DataFrame, cols: list[str]) -> pd.DataFram
     return out.sort_values(sort_cols, kind="stable").reset_index(drop=True)[cols]
 
 
+def read_data_branch(repo: Path, *, branch: str = "data", remote: str = "origin") -> tuple[pd.DataFrame, pd.DataFrame]:
+    """讀目前 data 分支的 (summary, crash)。先 fetch 遠端；分支不存在則回傳空表。"""
+    repo = Path(repo)
+    if git(repo, "remote", "get-url", remote, check=False).returncode == 0:
+        git(repo, "fetch", remote, branch, check=False)
+    ref = f"{remote}/{branch}"
+    base = ref if branch_exists(repo, ref) else (branch if branch_exists(repo, branch) else None)
+    if base is None:
+        return pd.DataFrame(columns=SUMMARY_COLS), pd.DataFrame(columns=CRASH_COLS)
+    return read_csv_at(repo, base, "summary.csv", SUMMARY_COLS), read_csv_at(repo, base, "crash.csv", CRASH_COLS)
+
+
 def build_meta(cfg: dict, now_iso: str, last_date: str) -> dict:
     return {
         "method_version": METHOD_VERSION,
