@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>崩盤機率走勢</title><link rel="stylesheet" href="assets/style.css?v=ba09b813"></head><body><main>
+<nav aria-label="頁面"><a href="index.html">最新結果</a><a href="vix.html">VIX</a><a href="svix.html">SVIX</a><a href="bound.html">報酬下界</a><a href="crash.html" aria-current="page">崩盤機率</a><a href="methodology.html">方法說明</a></nav>
+<h1>未來 30 天崩盤機率</h1>
+<div class="sub">門檻是相對「遠期價」（K/F），不是相對現貨。</div>
+<p class="explain"><b>γ 是什麼？</b>γ 代表風險趨避的程度。γ 越大，投資人越把壞情況看得越糟，選擇權價格裡有一部分就是這種「怕」；把它扣掉之後，實際上會大跌的機率反而越低。γ=0 不做任何調整（風險中性 Q）；γ=1、2、4 是越來越趨避。γ 是假設，不是觀察值。</p>
+<div class="bar" role="group" aria-label="崩盤門檻"><span class="lab">門檻</span>
+  <button class="chip" data-th="0.9" aria-pressed="true">低於 0.90（跌逾 10%）</button>
+  <button class="chip" data-th="0.8" aria-pressed="false">低於 0.80（跌逾 20%）</button>
+  <span class="lab" style="margin-left:12px">日期範圍</span>
+  <button class="chip" data-range="30" aria-pressed="false">近 30 天</button>
+  <button class="chip" data-range="90" aria-pressed="false">近 90 天</button>
+  <button class="chip" data-range="0" aria-pressed="true">全部</button></div>
+<div class="card" style="margin-top:12px"><p class="ctitle" id="ctitle"></p><p class="cdesc">實線為風險中性 Q（γ=0），γ 越大線越短；提示框會列出該日的品質旗標。</p>
+  <div class="chart"><canvas id="c-crash" role="img" aria-label="不同 γ 下的 30 天崩盤機率時間序列"></canvas></div></div>
+<details class="card"><summary>以表格檢視</summary><div class="scroll"><table id="dtable"><thead><tr><th>日期</th><th>Q（γ=0）</th><th>γ=1</th><th>γ=2</th><th>γ=4</th></tr></thead><tbody></tbody></table></div></details>
+<footer>資料更新時間：<span id="updated"></span>　資料來源：臺灣期貨交易所　本站為研究用途，<strong>非投資建議</strong>。</footer>
+</main>
+<script src="assets/data.js?v=e0b1dd8c"></script><script src="assets/common.js?v=1d50b320"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+let th = new URLSearchParams(location.search).get('th') === '0.8' ? '0.8' : '0.9';
+const sync = () => document.querySelectorAll('[data-th]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.th === th)));
+const rows = r => [r.date, ...GAMMAS.map(g => pct(pOf(r.date, th, g)))];
+function render() {
+  const v = visible(), labels = v.map(r => r.date);
+  $('#ctitle').textContent = `機率 Q(S < ${th === '0.9' ? '0.90' : '0.80'} F) 與真實機率 P`;
+  draw('c-crash', labels, GAMMAS.map((g, i) => line(GLAB[g], v.map(r => { const p = pOf(r.date, th, g); return p == null ? null : p * 100; }), css('--o' + (i + 1)), { borderDash: DASH[g], borderWidth: g === '0' ? 2.5 : 2 })), {
+    y: { title: { display: true, text: '機率 %', color: css('--ink-2') }, beginAtZero: true },
+    tooltip: { callbacks: { label: c => ` ${c.dataset.label}  ${num(c.parsed.y, 2)}%`, footer: items => { const f = flagText(v[items[0].dataIndex].quality_flags); return f.length ? '品質旗標：\n' + f.join('\n') : ''; } } },
+  });
+  fillTable('#dtable', rows);
+}
+document.querySelectorAll('[data-th]').forEach(b => b.addEventListener('click', () => { th = b.dataset.th; sync(); render(); }));
+bindRange(render); sync();
+if (typeof Chart !== 'undefined') { render(); matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render); } else { chartFallback(); $('#ctitle').textContent = '崩盤機率'; fillTable('#dtable', rows); }
+</script></body></html>
